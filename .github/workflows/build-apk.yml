@@ -18,6 +18,54 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      # ============================================
+      # EXEL WA TRANSLATOR - INSTALL APP ICON
+      # ============================================
+
+      - name: Extract Android App Icon
+        run: |
+          echo "Extracting Exel WA Translator icon..."
+
+          unzip -o Exel_WA_Translator_Android_Icon_Pack.zip -d icon_pack
+
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+
+          cp icon_pack/app/src/main/res/mipmap-mdpi/ic_launcher.png \
+             app/src/main/res/mipmap-mdpi/ic_launcher.png
+
+          cp icon_pack/app/src/main/res/mipmap-mdpi/ic_launcher_round.png \
+             app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+
+          cp icon_pack/app/src/main/res/mipmap-hdpi/ic_launcher.png \
+             app/src/main/res/mipmap-hdpi/ic_launcher.png
+
+          cp icon_pack/app/src/main/res/mipmap-hdpi/ic_launcher_round.png \
+             app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+
+          cp icon_pack/app/src/main/res/mipmap-xhdpi/ic_launcher.png \
+             app/src/main/res/mipmap-xhdpi/ic_launcher.png
+
+          cp icon_pack/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png \
+             app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+
+          cp icon_pack/app/src/main/res/mipmap-xxhdpi/ic_launcher.png \
+             app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+
+          cp icon_pack/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png \
+             app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+
+          cp icon_pack/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png \
+             app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+          cp icon_pack/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png \
+             app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+          echo "Icon installed successfully."
+
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
@@ -47,7 +95,8 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build Debug APK
-        run: gradle --no-daemon --stacktrace assembleDebug
+        run: |
+          gradle --no-daemon --stacktrace assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
