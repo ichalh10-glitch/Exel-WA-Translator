@@ -1,10 +1,13 @@
 package com.exel.watranslator;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
+import android.icu.text.Transliterator;
 import android.os.Bundle;
-import android.view.View;
+import android.text.TextUtils;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -17,16 +20,17 @@ import com.google.mlkit.nl.translate.Translation;
 import com.google.mlkit.nl.translate.Translator;
 import com.google.mlkit.nl.translate.TranslatorOptions;
 
-import android.icu.text.Transliterator;
-
 public class MainActivity extends Activity {
 
     private EditText inputText;
     private TextView resultText;
+    private Translator translator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        ScrollView scrollView = new ScrollView(this);
 
         LinearLayout main = new LinearLayout(this);
         main.setOrientation(LinearLayout.VERTICAL);
@@ -37,4 +41,207 @@ public class MainActivity extends Activity {
         title.setTextSize(26);
         title.setPadding(0, 0, 0, 20);
 
-        TextView info =
+        TextView info = new TextView(this);
+        info.setText(
+                "Mandarin → Hanzi + Pinyin + Bahasa Indonesia\n\n" +
+                "Tempel teks Mandarin atau bagikan teks dari WhatsApp."
+        );
+        info.setTextSize(16);
+        info.setPadding(0, 0, 0, 24);
+
+        inputText = new EditText(this);
+        inputText.setHint("Masukkan teks Mandarin di sini...");
+        inputText.setMinLines(5);
+        inputText.setGravity(android.view.Gravity.TOP);
+        inputText.setPadding(20, 20, 20, 20);
+
+        Button translateButton = new Button(this);
+        translateButton.setText("TERJEMAHKAN");
+
+        Button copyButton = new Button(this);
+        copyButton.setText("SALIN HASIL");
+
+        Button shareButton = new Button(this);
+        shareButton.setText("BAGIKAN HASIL");
+
+        Button clearButton = new Button(this);
+        clearButton.setText("HAPUS");
+
+        resultText = new TextView(this);
+        resultText.setTextSize(18);
+        resultText.setPadding(0, 30, 0, 30);
+        resultText.setText("Hasil terjemahan akan muncul di sini.");
+
+        main.addView(title);
+        main.addView(info);
+        main.addView(inputText);
+        main.addView(translateButton);
+        main.addView(copyButton);
+        main.addView(shareButton);
+        main.addView(clearButton);
+        main.addView(resultText);
+
+        scrollView.addView(main);
+        setContentView(scrollView);
+
+        TranslatorOptions options =
+                new TranslatorOptions.Builder()
+                        .setSourceLanguage(TranslateLanguage.CHINESE)
+                        .setTargetLanguage(TranslateLanguage.INDONESIAN)
+                        .build();
+
+        translator = Translation.getClient(options);
+
+        translateButton.setOnClickListener(v -> translateText());
+        copyButton.setOnClickListener(v -> copyResult());
+        shareButton.setOnClickListener(v -> shareResult());
+
+        clearButton.setOnClickListener(v -> {
+            inputText.setText("");
+            resultText.setText("Hasil terjemahan akan muncul di sini.");
+        });
+
+        handleSharedText(getIntent());
+    }
+
+    private void translateText() {
+
+        String chinese = inputText.getText().toString().trim();
+
+        if (TextUtils.isEmpty(chinese)) {
+            Toast.makeText(
+                    this,
+                    "Masukkan teks Mandarin terlebih dahulu.",
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+
+        resultText.setText("Menyiapkan penerjemah...");
+
+        translator.downloadModelIfNeeded()
+                .addOnSuccessListener(unused -> {
+
+                    resultText.setText("Menerjemahkan...");
+
+                    translator.translate(chinese)
+                            .addOnSuccessListener(indonesian -> {
+
+                                String pinyin = createPinyin(chinese);
+
+                                String output =
+                                        "汉字 / Hanzi\n" +
+                                        chinese +
+                                        "\n\nPinyin\n" +
+                                        pinyin +
+                                        "\n\nBahasa Indonesia\n" +
+                                        indonesian;
+
+                                resultText.setText(output);
+                            })
+                            .addOnFailureListener(e ->
+                                    resultText.setText(
+                                            "Terjemahan gagal:\n" +
+                                            e.getMessage()
+                                    )
+                            );
+                })
+                .addOnFailureListener(e ->
+                        resultText.setText(
+                                "Gagal mengunduh model bahasa:\n" +
+                                e.getMessage()
+                        )
+                );
+    }
+
+    private String createPinyin(String chinese) {
+
+        try {
+            Transliterator transliterator =
+                    Transliterator.getInstance("Han-Latin");
+
+            return transliterator.transliterate(chinese);
+
+        } catch (Exception e) {
+            return chinese;
+        }
+    }
+
+    private void copyResult() {
+
+        String result = resultText.getText().toString();
+
+        ClipboardManager clipboard =
+                (ClipboardManager)
+                        getSystemService(Context.CLIPBOARD_SERVICE);
+
+        ClipData clip =
+                ClipData.newPlainText(
+                        "Exel WA Translator",
+                        result
+                );
+
+        clipboard.setPrimaryClip(clip);
+
+        Toast.makeText(
+                this,
+                "Hasil sudah disalin.",
+                Toast.LENGTH_SHORT
+        ).show();
+    }
+
+    private void shareResult() {
+
+        String result = resultText.getText().toString();
+
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(Intent.EXTRA_TEXT, result);
+
+        startActivity(
+                Intent.createChooser(
+                        shareIntent,
+                        "Bagikan terjemahan"
+                )
+        );
+    }
+
+    private void handleSharedText(Intent intent) {
+
+        if (intent == null) {
+            return;
+        }
+
+        if (Intent.ACTION_SEND.equals(intent.getAction())) {
+
+            String type = intent.getType();
+
+            if (type != null && type.startsWith("text/")) {
+
+                String sharedText =
+                        intent.getStringExtra(Intent.EXTRA_TEXT);
+
+                if (sharedText != null) {
+
+                    inputText.setText(sharedText);
+
+                    Toast.makeText(
+                            this,
+                            "Teks WhatsApp diterima.",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+
+        if (translator != null) {
+            translator.close();
+        }
+
+        super.onDestroy();
+    }
+}
